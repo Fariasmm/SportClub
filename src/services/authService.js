@@ -1,6 +1,6 @@
 // src/services/authService.js
 
-const API_URL = "http://localhost:3000/api/auth";
+const API_URL = "http://34.225.6.211:3000/api/auth";
 
 // Login contra el backend
 export async function loginUser(credentials) {

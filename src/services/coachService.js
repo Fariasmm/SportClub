@@ -1,5 +1,5 @@
 // src/services/coachService.js
-const API_URL = "http://localhost:3000/api/coach";
+const API_URL = "http://34.225.6.211:3000/api/coach";
 
 function getToken() {
   return localStorage.getItem("token");

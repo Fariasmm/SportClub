@@ -1,6 +1,6 @@
 // src/services/sportService.js
 
-const API_URL = "http://localhost:3000/api/sports/";
+const API_URL = "http://34.225.6.211:3000/api/sports/";
 
 function getToken() {
     return localStorage.getItem("token");

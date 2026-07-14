@@ -1,5 +1,5 @@
 // src/services/scheduleService.js
-const API_URL = "http://localhost:3000/api/class-schedules";
+const API_URL = "http://34.225.6.211:3000/api/class-schedules";
 
 function getToken() {
     return localStorage.getItem("token");
@@ -93,7 +93,7 @@ export async function deleteSchedule(id) {
 
 // POST /api/reservations
 export async function bookClass(scheduleId) {
-    const response = await fetch("http://localhost:3000/api/reservations", {
+    const response = await fetch("http://34.225.6.211:3000/api/reservations", {
         method: "POST",
         headers: getHeader(),
         body: JSON.stringify({

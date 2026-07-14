@@ -1,6 +1,6 @@
 // src/services/memberService.js
-const MEMBER_URL = "http://localhost:3000/api/member";
-const RESERVATIONS_URL = "http://localhost:3000/api/reservations";
+const MEMBER_URL = "http://34.225.6.211:3000/api/member";
+const RESERVATIONS_URL = "http://34.225.6.211:3000/api/reservations";
 
 function getToken() {
   return localStorage.getItem("token");

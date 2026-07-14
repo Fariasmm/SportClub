@@ -1,6 +1,6 @@
 // src/services/userService.js
 
-const API_URL = "http://localhost:3000/api/users/";
+const API_URL = "http://34.225.6.211:3000/api/users/";
 
 function getToken() {
     return localStorage.getItem("token");

@@ -1,5 +1,5 @@
 // src/services/sportRoomService.js
-const API_URL = "http://localhost:3000/api/sport-rooms"; // <-- Limpio sin "/" al final
+const API_URL = "http://34.225.6.211:3000/api/sport-rooms"; // <-- Limpio sin "/" al final
 
 function getToken() {
     return localStorage.getItem("token");

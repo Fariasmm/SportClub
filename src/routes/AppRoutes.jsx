@@ -54,7 +54,6 @@ function AppRoutes() {
                 {/* ================= RUTAS PROTEGIDAS: COACH ================= */}
                 <Route path="/coach" element={<RoleRoute allowedRoles={["coach"]}><CoachLayout /></RoleRoute>}>
                     <Route path="dashboard" element={<CoachDashboard />} />
-                    {/* 🔥 Agregamos el flujo "Mi Horario" como sub-ruta indexada a /coach/horario */}
                     <Route path="horario" element={<MySchedulesPage />} />
                 </Route>
 
