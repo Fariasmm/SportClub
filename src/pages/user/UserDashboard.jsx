@@ -3,17 +3,20 @@ import { useEffect, useState } from "react"
 import { Badge, Button, Card, Col, Row, Table } from "react-bootstrap"
 import Swal from "sweetalert2"
 
-// 🔥 IMPORTACIONES DE TUS SERVICIOS REALES CORREGIDOS
 import { getSchedules, bookClass } from "../../services/scheduleService"
 import { getMyReservations, cancelReservation } from "../../services/memberService"
-import { getSportRooms } from "../../services/sportRoomService" // 🔥 Tu servicio nativo
+import { getSportRooms } from "../../services/sportRoomService" 
 import LoaderSpinner from "../../components/LoaderSpinner"
+import SearchBar from "../../components/SearchBar" // 👈 Importamos tu nuevo buscador
+
+const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
 function UserDashboard() {
   const [classes, setClasses] = useState([])
   const [reservations, setReservations] = useState([])
   const [sportRoomsCatalog, setSportRoomsCatalog] = useState([]) 
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("") // 👈 Estado para filtrar la cartelera
 
   const colors = {
     purple: '#2b124c',
@@ -23,6 +26,11 @@ function UserDashboard() {
     inputBorder: '#442373'
   }
 
+  const getDayName = (dayNum) => {
+    const index = parseInt(dayNum, 10) - 1;
+    return DAYS[index] || `Día ${dayNum}`;
+  }
+
   const loadDashboardData = async () => {
     try {
       setLoading(true)
@@ -30,7 +38,7 @@ function UserDashboard() {
       const [classesRes, reservationsRes, catalogRes] = await Promise.all([
         getSchedules(),
         getMyReservations(),
-        getSportRooms() // 🔥 Llamamos a tu función nativa que consulta /api/sport-rooms
+        getSportRooms() 
       ])
       
       const fetchedClasses = classesRes.data || classesRes || []
@@ -65,6 +73,38 @@ function UserDashboard() {
     loadDashboardData()
   }, [])
 
+  // =========================================================================
+  // ⚡ LÓGICA DE FILTRADO DINÁMICO PARA EL SOCIO
+  // =========================================================================
+  const filteredClasses = classes.filter((c) => {
+    const term = searchTerm.toLowerCase().trim()
+    if (!term) return true
+
+    // 1. Buscamos la relación de la clase para extraer nombres reales
+    const matchedRoom = sportRoomsCatalog.find(sr => {
+      const targetId = String(c.sport_room_id || "")
+      return String(sr.id || "") === targetId || String(sr.sport_room_id || "") === targetId
+    })
+
+    const relation = matchedRoom?.SportRoom || matchedRoom?.sport_room || matchedRoom?.Sport_Room || matchedRoom || c
+    
+    const sportName = (relation?.Sport?.name || relation?.sport?.name || matchedRoom?.sport_name || c.sport_name || "Clase").toLowerCase()
+    const roomName = (relation?.Room?.name || relation?.room?.name || matchedRoom?.room_name || c.room_name || "Sala Común").toLowerCase()
+    
+    const coachObj = relation?.Coach || relation?.coach || relation?.User || relation?.user || relation?.Instructor
+    const coachName = (coachObj?.full_name || coachObj?.name || relation?.coach_name || matchedRoom?.coach_name || "Profesor Asignado").toLowerCase()
+    
+    const dayName = getDayName(c.day_of_week).toLowerCase()
+
+    // 2. Filtramos por coincidencia en cualquiera de los campos
+    return (
+      sportName.includes(term) ||
+      roomName.includes(term) ||
+      coachName.includes(term) ||
+      dayName.includes(term)
+    )
+  })
+
   const handleBookClass = async (scheduleId) => {
     try {
       await bookClass(scheduleId)
@@ -78,9 +118,14 @@ function UserDashboard() {
       })
       loadDashboardData() 
     } catch (error) {
+      let errorMsg = error.message || "Límite de cupos alcanzado o cruce de horario.";
+      if (error.details && Array.isArray(error.details)) {
+        errorMsg = error.details.map(err => `• ${err.msg || err.message || err}`).join("<br/>");
+      }
+
       Swal.fire({
         title: "No se pudo agendar",
-        text: error.message || "Límite de cupos alcanzado o cruce de horario.",
+        html: `<div style="text-align: left;">${errorMsg}</div>`,
         icon: "error",
         background: colors.purple,
         color: "#fff",
@@ -148,6 +193,16 @@ function UserDashboard() {
             <h3 className="fw-bold text-uppercase tracking-wide m-0">🏋️‍♂️ Clases Disponibles</h3>
             <p className="text-white-50 small m-0 mt-1">Consulta la oferta horaria oficial e inscríbete de manera directa.</p>
           </div>
+
+          {/* 🔍 BARRA DE BÚSQUEDA DEL SOCIO */}
+          <div className="mb-3" style={{ maxWidth: '400px' }}>
+            <SearchBar 
+              value={searchTerm} 
+              onChange={setSearchTerm} 
+              placeholder="🔍 Buscar por disciplina, sala, día o profesor..." 
+            />
+          </div>
+
           <Card className="border-0 shadow-lg text-white" style={{ backgroundColor: colors.purple, borderRadius: '12px' }}>
             <Card.Body className="p-0">
               <div className="table-responsive">
@@ -162,10 +217,14 @@ function UserDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {classes.length === 0 ? (
-                      <tr><td colSpan="5" className="text-center py-4 text-white-50">No hay bloques de entrenamiento disponibles en el sistema.</td></tr>
+                    {filteredClasses.length === 0 ? ( // 👈 Mapeamos el arreglo filtrado
+                      <tr>
+                        <td colSpan="5" className="text-center py-4 text-white-50">
+                          {searchTerm ? "No se encontraron clases que coincidan con la búsqueda." : "No hay bloques de entrenamiento disponibles."}
+                        </td>
+                      </tr>
                     ) : (
-                      classes.map((c) => {
+                      filteredClasses.map((c) => { // 👈 Mapeamos el arreglo filtrado
                         const matchedRoom = sportRoomsCatalog.find(sr => {
                           const targetId = String(c.sport_room_id || "")
                           return String(sr.id || "") === targetId || String(sr.sport_room_id || "") === targetId
@@ -175,15 +234,13 @@ function UserDashboard() {
                         
                         const sportName = relation?.Sport?.name || relation?.sport?.name || matchedRoom?.sport_name || c.sport_name || "Clase"
                         const roomName = relation?.Room?.name || relation?.room?.name || matchedRoom?.room_name || c.room_name || "Sala Común"
-                        
-                        // Capturadores en cascada para el Profesor
                         const coachObj = relation?.Coach || relation?.coach || relation?.User || relation?.user || relation?.Instructor
                         const coachName = coachObj?.full_name || coachObj?.name || relation?.coach_name || matchedRoom?.coach_name || "Profesor Asignado"
 
                         return (
                           <tr key={c.id} style={{ borderBottom: `1px solid ${colors.inputBorder}` }}>
                             <td className="py-3 px-4">
-                              <span className="fw-bold d-block text-warning small">{c.day_of_week}</span>
+                              <span className="fw-bold d-block text-warning small">{getDayName(c.day_of_week)}</span>
                               <span className="font-monospace small opacity-75">{c.start_time?.substring(0, 5)} - {c.end_time?.substring(0, 5)}</span>
                             </td>
                             <td className="py-3 fw-bold text-white">{sportName}</td>
@@ -234,7 +291,7 @@ function UserDashboard() {
                   const coachObj = relation?.Coach || relation?.coach || relation?.User || relation?.user || relation?.Instructor
                   const coachName = coachObj?.full_name || coachObj?.name || relation?.coach_name || matchedRoom?.coach_name || "Profesor"
                   
-                  const dayName = matchingSchedule?.day_of_week || "Asignado"
+                  const dayName = matchingSchedule ? getDayName(matchingSchedule.day_of_week) : "Asignado"
                   const timeRange = matchingSchedule ? `${matchingSchedule.start_time?.substring(0, 5)} - ${matchingSchedule.end_time?.substring(0, 5)}` : ""
 
                   return (

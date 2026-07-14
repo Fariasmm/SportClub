@@ -13,6 +13,19 @@ function getHeader() {
     };
 }
 
+// Helper avanzado para capturar la respuesta JSON de error completa del backend
+async function handleResponseError(response, defaultMsg) {
+    try {
+        const data = await response.json();
+        const error = new Error(data.message || data.error || defaultMsg);
+        error.rawResponse = data;
+        error.details = data.errors || data.details || null;
+        return error;
+    } catch {
+        return new Error(defaultMsg);
+    }
+}
+
 // 1. Obtener todos los deportes (GET /api/sports)
 export async function getSports() {
     const response = await fetch(API_URL, {
@@ -40,11 +53,11 @@ export async function createSport(sportData) {
         body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.message || "Error al registrar el deporte");
+        const errorObj = await handleResponseError(response, "Error al registrar el deporte");
+        throw errorObj;
     }
-    return data;
+    return response.json();
 }
 
 // 3. Actualizar un deporte (PUT /api/sports/:id)
@@ -62,11 +75,11 @@ export async function updateSport(sportId, sportData) {
         body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.message || "Error al actualizar el deporte");
+        const errorObj = await handleResponseError(response, "Error al actualizar el deporte");
+        throw errorObj;
     }
-    return data;
+    return response.json();
 }
 
 // 4. Eliminar un deporte (DELETE /api/sports/:id)
@@ -77,8 +90,8 @@ export async function deleteSport(sportId) {
     });
 
     if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Error al eliminar el deporte");
+        const errorObj = await handleResponseError(response, "Error al eliminar el deporte");
+        throw errorObj;
     }
     return true;
 }

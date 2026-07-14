@@ -17,6 +17,9 @@ function ScheduleFormModal({ show, handleClose, handleSave, selectedSchedule }) 
   const [formData, setFormData] = useState(initialForm)
   const [assignments, setAssignments] = useState([])
   const [loadingSelect, setLoadingSelect] = useState(false)
+  
+  // Estado para la barra de búsqueda en el modal
+  const [searchTerm, setSearchTerm] = useState("")
 
   const colors = {
     purple: '#2b124c',
@@ -39,14 +42,15 @@ function ScheduleFormModal({ show, handleClose, handleSave, selectedSchedule }) 
       }
     }
     fetchAssignments()
+    setSearchTerm("") // Resetear la barra de búsqueda al abrir el modal
   }, [show])
 
   useEffect(() => {
     if (selectedSchedule) {
       setFormData({
         sport_room_id: selectedSchedule.sport_room_id || "",
-        day_of_week: selectedSchedule.day_of_week || "",
-        start_time: selectedSchedule.start_time?.substring(0, 5) || "", // Corta "19:00:00" a "19:00"
+        day_of_week: selectedSchedule.day_of_week !== undefined ? selectedSchedule.day_of_week : "",
+        start_time: selectedSchedule.start_time?.substring(0, 5) || "",
         end_time: selectedSchedule.end_time?.substring(0, 5) || "",
         status: selectedSchedule.status !== undefined ? selectedSchedule.status : true
       })
@@ -57,19 +61,32 @@ function ScheduleFormModal({ show, handleClose, handleSave, selectedSchedule }) 
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    
+    let finalValue = value;
+    if (name === "day_of_week") {
+      finalValue = value !== "" ? parseInt(value, 10) : "";
+    } else if (name === "status") {
+      finalValue = e.target.checked;
+    }
+
     setFormData({
       ...formData,
-      [name]: name === "status" ? e.target.checked : value
+      [name]: finalValue
     })
   }
 
-  // Helper para mostrar un texto limpio en las opciones del selector
   const formatAssignmentLabel = (item) => {
     const sportName = item.Sport?.name || item.sport?.name || `Deporte #${item.sport_id}`
     const roomName = item.Room?.name || item.room?.name || `Sala #${item.room_id}`
     const coachName = item.Coach?.full_name || item.coach?.full_name || "Sin Coach"
     return `${sportName} ➔ ${roomName} (${coachName})`
   }
+
+  // Filtrado reactivo según el término buscado
+  const filteredAssignments = assignments.filter(item => {
+    const label = formatAssignmentLabel(item).toLowerCase();
+    return label.includes(searchTerm.toLowerCase());
+  })
 
   return (
     <Modal show={show} onHide={handleClose} centered contentClassName="border-0 shadow-lg">
@@ -88,6 +105,19 @@ function ScheduleFormModal({ show, handleClose, handleSave, selectedSchedule }) 
             </div>
           ) : (
             <>
+              {/* Buscador de Asignaciones */}
+              <Form.Group className="mb-3">
+                <Form.Label className="small fw-semibold text-light opacity-75">🔍 Buscar Configuración (Deporte, Sala o Instructor)</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Escribe para filtrar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="text-white border-0 py-2"
+                  style={{ backgroundColor: colors.darkBg, borderRadius: '6px', fontSize: '0.85rem' }}
+                />
+              </Form.Group>
+
               {/* Selector de Asignación */}
               <Form.Group className="mb-3">
                 <Form.Label className="small fw-semibold text-light opacity-75">Seleccionar Configuración del Club</Form.Label>
@@ -100,10 +130,13 @@ function ScheduleFormModal({ show, handleClose, handleSave, selectedSchedule }) 
                   style={{ backgroundColor: colors.darkBg, borderRadius: '6px', fontSize: '0.85rem' }}
                 >
                   <option value="">-- Elija un vínculo (Deporte + Sala) --</option>
-                  {assignments.map(item => (
+                  {filteredAssignments.map(item => (
                     <option key={item.id} value={item.id}>{formatAssignmentLabel(item)}</option>
                   ))}
                 </Form.Select>
+                {searchTerm && filteredAssignments.length === 0 && (
+                  <Form.Text className="text-danger small mt-1 d-block">No se encontraron combinaciones que coincidan.</Form.Text>
+                )}
               </Form.Group>
 
               {/* Día de la semana */}
@@ -118,7 +151,9 @@ function ScheduleFormModal({ show, handleClose, handleSave, selectedSchedule }) 
                   style={{ backgroundColor: colors.darkBg, borderRadius: '6px' }}
                 >
                   <option value="">-- Seleccione un día --</option>
-                  {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                  {DAYS.map((d, index) => (
+                    <option key={d} value={index + 1}>{d}</option>
+                  ))}
                 </Form.Select>
               </Form.Group>
 

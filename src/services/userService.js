@@ -6,12 +6,27 @@ function getToken() {
     return localStorage.getItem("token");
 }
 
-// CORREGIDO: Nombre de propiedad estándar "Content-Type"
 function GetHeader() {
     return {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${getToken()}`
     };
+}
+
+// Función helper para procesar errores de validación de manera detallada
+async function handleResponseError(response, defaultMsg) {
+    try {
+        const data = await response.json();
+        // El backend suele devolver el mensaje en data.message o data.error
+        const errorMessage = data.message || data.error || defaultMsg;
+        const error = new Error(errorMessage);
+        
+        // Guardamos los errores específicos (ej. validations, arrays de Sequelize, express-validator)
+        error.details = data.errors || data.details || null;
+        return error;
+    } catch {
+        return new Error(defaultMsg);
+    }
 }
 
 // 1. Obtener todos los usuarios
@@ -29,7 +44,6 @@ export async function getUsers() {
 
 // 2. Crear un usuario nuevo
 export async function createUser(userData) {
-    // Estructuramos el payload exacto que exige el nuevo validador
     const payload = {
         full_name: userData.full_name,
         email: userData.email,
@@ -45,16 +59,15 @@ export async function createUser(userData) {
         body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.message || "Error al crear el usuario");
+        const errorObj = await handleResponseError(response, "Error al crear el usuario");
+        throw errorObj;
     }
-    return data;
+    return response.json();
 }
 
 // 3. Actualizar un usuario existente
 export async function updateUser(userId, userData) {
-    // CRÍTICO: No enviamos 'password' si viene vacío para que el validador parcial del backend no falle
     const payload = {
         full_name: userData.full_name,
         email: userData.email,
@@ -69,11 +82,11 @@ export async function updateUser(userId, userData) {
         body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.message || "Error al actualizar el usuario");
+        const errorObj = await handleResponseError(response, "Error al actualizar el usuario");
+        throw errorObj;
     }
-    return data;
+    return response.json();
 }
 
 // 4. Eliminar un usuario
@@ -84,8 +97,8 @@ export async function deleteUser(userId) {
     });
 
     if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Error al eliminar el usuario");
+        const errorObj = await handleResponseError(response, "Error al eliminar el usuario");
+        throw errorObj;
     }
 
     return true;

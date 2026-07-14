@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Badge, Button, Card, Spinner, Row, Col } from "react-bootstrap"
 import Swal from "sweetalert2"
 import RoomFormModal from "../../components/rooms/RoomFormModal"
+import SearchBar from "../../components/SearchBar" // 👈 Importamos el buscador
 import { getRooms, createRoom, updateRoom, deleteRoom } from "../../services/roomService"
 
 function RoomsPage() {
@@ -10,6 +11,7 @@ function RoomsPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [selectedRoom, setSelectedRoom] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("") // 👈 Estado para el buscador
 
   const colors = {
     purple: '#2b124c',
@@ -18,20 +20,41 @@ function RoomsPage() {
     inputBorder: '#442373'
   }
 
+  const handleCatchError = (error, defaultTitle = "Error") => {
+    let errorMsg = "";
+    if (error.details && Array.isArray(error.details)) {
+      errorMsg = error.details.map(err => `• ${err.msg || err.message || err}`).join("<br/>");
+    } else if (error.details && typeof error.details === 'object') {
+      errorMsg = Object.entries(error.details).map(([key, val]) => `• <strong>${key}</strong>: ${val}`).join("<br/>");
+    } else if (error.rawResponse && typeof error.rawResponse === 'object') {
+      const extraKeys = Object.keys(error.rawResponse).filter(k => k !== 'message' && k !== 'error' && k !== 'ok');
+      if (extraKeys.length > 0) {
+        errorMsg = extraKeys.map(key => {
+          const val = error.rawResponse[key];
+          return `• <strong>${key}</strong>: ${typeof val === 'object' ? JSON.stringify(val) : val}`;
+        }).join("<br/>");
+      }
+    }
+    if (!errorMsg) {
+      errorMsg = `• <strong>Datos inválidos:</strong> Por favor, verifica que todos los campos obligatorios estén llenos y que la capacidad sea mayor a 0.`;
+    }
+    Swal.fire({
+      title: defaultTitle,
+      html: `<div style="text-align: left; font-size: 0.95rem; line-height: 1.5;">${errorMsg}</div>`,
+      icon: "error",
+      background: colors.purple,
+      color: "#fff",
+      confirmButtonColor: colors.yellow
+    });
+  }
+
   const loadRooms = async () => {
     try {
       setLoading(true)
       const data = await getRooms()
       setRooms(data.data || [])
     } catch (error) {
-      Swal.fire({
-        title: "Error",
-        text: error.message,
-        icon: "error",
-        background: colors.purple,
-        color: "#fff",
-        confirmButtonColor: colors.yellow
-      })
+      handleCatchError(error, "Error al Cargar Salas")
     } finally {
       setLoading(false)
     }
@@ -40,6 +63,16 @@ function RoomsPage() {
   useEffect(() => {
     loadRooms()
   }, [])
+
+  // ⚡ FILTRADO REACTIVO DE LAS SALAS
+  const filteredRooms = rooms.filter(room => {
+    const term = searchTerm.toLowerCase()
+    return (
+      room.name?.toLowerCase().includes(term) ||
+      room.location?.toLowerCase().includes(term) ||
+      room.description?.toLowerCase().includes(term)
+    )
+  })
 
   const openCreateModal = () => {
     setSelectedRoom(null)
@@ -60,74 +93,37 @@ function RoomsPage() {
     try {
       if (selectedRoom) {
         await updateRoom(selectedRoom.id, formData)
-        Swal.fire({
-          title: "Actualizada",
-          text: "Sala actualizada correctamente",
-          icon: "success",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        Swal.fire({ title: "Actualizada", text: "Sala actualizada correctamente", icon: "success", background: colors.purple, color: "#fff", confirmButtonColor: colors.yellow })
       } else {
         await createRoom(formData)
-        Swal.fire({
-          title: "Creada",
-          text: "Sala deportiva registrada con éxito",
-          icon: "success",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        Swal.fire({ title: "Creada", text: "Sala deportiva registrada con éxito", icon: "success", background: colors.purple, color: "#fff", confirmButtonColor: colors.yellow })
       }
       closeModal()
       loadRooms()
     } catch (error) {
-      Swal.fire({
-        title: "Error",
-        text: error.message,
-        icon: "error",
-        background: colors.purple,
-        color: "#fff",
-        confirmButtonColor: colors.yellow
-      })
+      handleCatchError(error, "Error en Formulario de Sala")
     }
   }
 
   const handleDelete = async (room) => {
     const result = await Swal.fire({
       title: "¿Eliminar sala?",
-      text: `Se eliminará permanentemente la ${room.name}. Esta acción podría afectar horarios asignados.`,
+      text: `Se eliminará permanentemente la ${room.name}.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Sí, eliminar",
       cancelButtonText: "Cancelar",
       confirmButtonColor: "#d33",
-      cancelButtonColor: "#6c757d",
       background: colors.purple,
       color: "#fff"
     })
-
     if (result.isConfirmed) {
       try {
         await deleteRoom(room.id)
-        Swal.fire({
-          title: "Eliminada",
-          text: "Sala eliminada correctamente",
-          icon: "success",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        Swal.fire({ title: "Eliminada", text: "Sala eliminada correctamente", icon: "success", background: colors.purple, color: "#fff", confirmButtonColor: colors.yellow })
         loadRooms()
       } catch (error) {
-        Swal.fire({
-          title: "Error",
-          text: error.message,
-          icon: "error",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        handleCatchError(error, "Error al Eliminar Sala")
       }
     }
   }
@@ -150,16 +146,29 @@ function RoomsPage() {
         </Button>
       </div>
 
+      {/* 🔍 BARRA DE BÚSQUEDA */}
+      <Row className="mb-3">
+        <Col md={6} lg={4}>
+          <SearchBar 
+            value={searchTerm} 
+            onChange={setSearchTerm} 
+            placeholder="Buscar por sala, ubicación o descripción..." 
+          />
+        </Col>
+      </Row>
+
       {loading ? (
         <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3">
           <Spinner animation="border" style={{ color: colors.yellow }} role="status" />
           <span className="text-white-50 small text-uppercase tracking-wider">Cargando salas...</span>
         </div>
-      ) : rooms.length === 0 ? (
-        <div className="text-center py-5 opacity-50">No hay salas deportivas configuradas en el sistema.</div>
+      ) : filteredRooms.length === 0 ? (
+        <div className="text-center py-5 opacity-50 text-white-50">
+          {searchTerm ? "No se encontraron salas para esta búsqueda." : "No hay salas deportivas configuradas."}
+        </div>
       ) : (
         <Row className="g-3">
-          {rooms.map((room) => (
+          {filteredRooms.map((room) => ( // 👈 Mapeamos el arreglo filtrado
             <Col key={room.id} xs={12} md={6} xl={4}>
               <Card className="border-0 shadow-lg text-white h-100" style={{ backgroundColor: colors.purple, borderRadius: '12px' }}>
                 <Card.Body className="p-4 d-flex flex-column justify-content-between">
@@ -180,7 +189,7 @@ function RoomsPage() {
                       <Button size="sm" variant="outline-light" className="fw-semibold text-uppercase px-3" onClick={() => openEditModal(room)} style={{ fontSize: '0.7rem', borderRadius: '4px' }}>
                         Editar
                       </Button>
-                      <Button size="sm" variant="outline-danger" className="fw-semibold text-uppercase px-3" onClick={() => handleDelete(room)} style={{ fontSize: '0.7_rem', borderRadius: '4px' }}>
+                      <Button size="sm" variant="outline-danger" className="fw-semibold text-uppercase px-3" onClick={() => handleDelete(room)} style={{ fontSize: '0.7rem', borderRadius: '4px' }}>
                         Borrar
                       </Button>
                     </div>
@@ -192,12 +201,7 @@ function RoomsPage() {
         </Row>
       )}
 
-      <RoomFormModal
-        show={showModal}
-        handleClose={closeModal}
-        handleSave={handleSave}
-        selectedRoom={selectedRoom}
-      />
+      <RoomFormModal show={showModal} handleClose={closeModal} handleSave={handleSave} selectedRoom={selectedRoom} />
     </div>
   )
 }

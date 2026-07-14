@@ -1,6 +1,7 @@
 // src/components/sports/SportFormModal.jsx
 import { useEffect, useState } from "react"
 import { Button, Form, Modal } from "react-bootstrap"
+import Swal from "sweetalert2"
 
 const initialForm = {
   name: "",
@@ -40,9 +41,60 @@ function SportFormModal({ show, handleClose, handleSave, selectedSport }) {
     })
   }
 
+  // ⚡ SISTEMA DE VALIDACIÓN PREVENTIVA LOCAL
   const onSubmit = (event) => {
     event.preventDefault()
-    handleSave(formData)
+
+    const cleanName = formData.name.trim()
+    const cleanObjective = formData.objective.trim()
+    const parsedDuration = parseInt(formData.duration, 10)
+
+    // 1. Validar longitud del nombre
+    if (cleanName.length < 3) {
+      Swal.fire({
+        title: "Nombre muy corto",
+        text: "El nombre del deporte debe tener al menos 3 caracteres válidos.",
+        icon: "warning",
+        background: colors.purple,
+        color: "#fff",
+        confirmButtonColor: colors.yellow
+      })
+      return
+    }
+
+    // 2. Validar rango numérico de duración (debe cumplir los mínimos requeridos por el form)
+    if (isNaN(parsedDuration) || parsedDuration < 15 || parsedDuration > 180) {
+      Swal.fire({
+        title: "Duración inválida",
+        text: "La duración de las clases debe estar comprendida entre 15 y 180 minutos.",
+        icon: "warning",
+        background: colors.purple,
+        color: "#fff",
+        confirmButtonColor: colors.yellow
+      })
+      return
+    }
+
+    // 3. Validar longitud del objetivo descriptivo
+    if (cleanObjective.length < 5) {
+      Swal.fire({
+        title: "Objetivo insuficiente",
+        text: "Por favor, detalla un objetivo deportivo válido (mínimo 5 caracteres).",
+        icon: "warning",
+        background: colors.purple,
+        color: "#fff",
+        confirmButtonColor: colors.yellow
+      })
+      return
+    }
+
+    // Si supera las condiciones locales, se procede con la llamada al servicio
+    handleSave({
+      ...formData,
+      name: cleanName,
+      objective: cleanObjective,
+      duration: parsedDuration
+    })
   }
 
   return (

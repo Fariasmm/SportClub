@@ -1,8 +1,9 @@
 // src/pages/admin/UsersPage.jsx
 import { useEffect, useState } from "react"
-import { Badge, Button, Card, Spinner, Table } from "react-bootstrap"
+import { Badge, Button, Card, Spinner, Table, Row, Col } from "react-bootstrap"
 import Swal from "sweetalert2"
 import UserFormModal from "../../components/users/UserFormModal"
+import SearchBar from "../../components/SearchBar" // 👈 Importamos el buscador
 import {
   createUser,
   deleteUser,
@@ -15,6 +16,7 @@ function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("") // 👈 Estado para la búsqueda
 
   const colors = {
     purple: '#2b124c',
@@ -23,20 +25,33 @@ function UsersPage() {
     inputBorder: '#442373'
   }
 
+  const handleCatchError = (error, defaultTitle = "Error") => {
+    let errorMsg = error.message || "Ocurrió un inconveniente inesperado.";
+    if (error.details && Array.isArray(error.details)) {
+      errorMsg = error.details.map(err => `• ${err.msg || err.message || err}`).join("<br/>");
+    } else if (error.details && typeof error.details === 'object') {
+      errorMsg = Object.values(error.details).map(msg => `• ${msg}`).join("<br/>");
+    }
+    Swal.fire({
+      title: defaultTitle,
+      html: `<div style="text-align: left; font-size: 0.95rem;">
+              <strong>El servidor rechazó la solicitud por lo siguiente:</strong><br/><br/>
+              ${errorMsg}
+             </div>`,
+      icon: "error",
+      background: colors.purple,
+      color: "#fff",
+      confirmButtonColor: colors.yellow
+    });
+  }
+
   const loadUsers = async () => {
     try {
       setLoading(true)
       const data = await getUsers()
-      setUsers(data.data)
+      setUsers(data.data || data || [])
     } catch (error) {
-      Swal.fire({
-        title: "Error",
-        text: error.message,
-        icon: "error",
-        background: colors.purple,
-        color: "#fff",
-        confirmButtonColor: colors.yellow
-      })
+      handleCatchError(error, "Error al Cargar Usuarios")
     } finally {
       setLoading(false)
     }
@@ -45,6 +60,16 @@ function UsersPage() {
   useEffect(() => {
     loadUsers()
   }, [])
+
+  // ⚡ FILTRADO REACTIVO DE USUARIOS
+  const filteredUsers = users.filter(user => {
+    const term = searchTerm.toLowerCase()
+    return (
+      user.full_name?.toLowerCase().includes(term) ||
+      user.email?.toLowerCase().includes(term) ||
+      user.role?.toLowerCase().includes(term)
+    )
+  })
 
   const openCreateModal = () => {
     setSelectedUser(null)
@@ -87,14 +112,7 @@ function UsersPage() {
       closeModal()
       loadUsers()
     } catch (error) {
-      Swal.fire({
-        title: "Error",
-        text: error.message,
-        icon: "error",
-        background: colors.purple,
-        color: "#fff",
-        confirmButtonColor: colors.yellow
-      })
+      handleCatchError(error, "Error en Formulario")
     }
   }
 
@@ -125,14 +143,7 @@ function UsersPage() {
         })
         loadUsers()
       } catch (error) {
-        Swal.fire({
-          title: "Error",
-          text: error.message,
-          icon: "error",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        handleCatchError(error, "Error al Eliminar")
       }
     }
   }
@@ -161,6 +172,17 @@ function UsersPage() {
         </Button>
       </div>
 
+      {/* 🔍 BARRA DE BÚSQUEDA */}
+      <Row className="mb-3">
+        <Col md={6} lg={4}>
+          <SearchBar 
+            value={searchTerm} 
+            onChange={setSearchTerm} 
+            placeholder="Buscar por nombre, email o rol..." 
+          />
+        </Col>
+      </Row>
+
       <Card className="border-0 shadow-lg text-white" style={{ backgroundColor: colors.purple, borderRadius: '12px' }}>
         <Card.Body className="p-0">
           
@@ -182,12 +204,14 @@ function UsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.length === 0 ? (
+                  {filteredUsers.length === 0 ? ( // 👈 Mapeamos el arreglo filtrado
                     <tr>
-                      <td colSpan="5" className="text-center py-4 text-white-50">No hay usuarios registrados en el sistema.</td>
+                      <td colSpan="5" className="text-center py-4 text-white-50">
+                        {searchTerm ? "No se encontraron usuarios para esta búsqueda." : "No hay usuarios registrados en el sistema."}
+                      </td>
                     </tr>
                   ) : (
-                    users.map((user) => (
+                    filteredUsers.map((user) => ( // 👈 Mapeamos el arreglo filtrado
                       <tr key={user.id} style={{ borderBottom: `1px solid ${colors.inputBorder}` }}>
                         <td className="py-3 px-4 fw-bold text-white-50">#{user.id}</td>
                         <td className="py-3 fw-semibold text-white">{user.full_name}</td>

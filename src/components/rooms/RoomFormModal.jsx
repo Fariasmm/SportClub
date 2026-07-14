@@ -1,6 +1,7 @@
 // src/components/rooms/RoomFormModal.jsx
 import { useEffect, useState } from "react"
 import { Button, Form, Modal } from "react-bootstrap"
+import Swal from "sweetalert2" // Importamos Swal para las alertas preventivas
 
 const initialForm = {
   name: "",
@@ -46,9 +47,76 @@ function RoomFormModal({ show, handleClose, handleSave, selectedRoom }) {
     })
   }
 
+  // ⚡ SISTEMA DE VALIDACIÓN PREVENTIVA ANTES DE ENVIAR AL BACKEND
   const onSubmit = (event) => {
     event.preventDefault()
-    handleSave(formData)
+
+    // 1. Sanitizar strings quitando espacios en blanco en los extremos
+    const cleanName = formData.name.trim()
+    const cleanLocation = formData.location.trim()
+    const cleanDescription = formData.description.trim()
+    const parsedCapacity = parseInt(formData.capacity, 10)
+
+    // 2. Comprobar que no hayan quedado vacíos tras el trim
+    if (cleanName.length < 3) {
+      Swal.fire({
+        title: "Nombre muy corto",
+        text: "El nombre de la sala debe tener al menos 3 caracteres reales.",
+        icon: "warning",
+        background: colors.purple,
+        color: "#fff",
+        confirmButtonColor: colors.yellow
+      })
+      return
+    }
+
+    if (cleanLocation.length < 3) {
+      Swal.fire({
+        title: "Ubicación requerida",
+        text: "Por favor, especifica una ubicación válida dentro del club.",
+        icon: "warning",
+        background: colors.purple,
+        color: "#fff",
+        confirmButtonColor: colors.yellow
+      })
+      return
+    }
+
+    // 3. Validar capacidad numérica coherente
+    if (isNaN(parsedCapacity) || parsedCapacity <= 0) {
+      Swal.fire({
+        title: "Capacidad inválida",
+        text: "La capacidad de alumnos debe ser un número entero mayor a cero.",
+        icon: "warning",
+        background: colors.purple,
+        color: "#fff",
+        confirmButtonColor: colors.yellow
+      })
+      return
+    }
+
+    if (cleanDescription.length < 5) {
+      Swal.fire({
+        title: "Descripción insuficiente",
+        text: "Escribe una breve descripción del equipamiento de la sala (mínimo 5 caracteres).",
+        icon: "warning",
+        background: colors.purple,
+        color: "#fff",
+        confirmButtonColor: colors.yellow
+      })
+      return
+    }
+
+    // Si pasa todas las validaciones locales, mandamos el payload sanitizado
+    handleSave({
+      ...formData,
+      name: cleanName,
+      location: cleanLocation,
+      description: cleanDescription,
+      capacity: parsedCapacity,
+      observation: formData.observation.trim(),
+      image_url: formData.image_url.trim()
+    })
   }
 
   return (

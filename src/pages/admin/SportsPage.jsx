@@ -1,8 +1,9 @@
 // src/pages/admin/SportsPage.jsx
 import { useEffect, useState } from "react"
-import { Badge, Button, Card, Spinner, Table } from "react-bootstrap"
+import { Badge, Button, Card, Spinner, Table, Row, Col } from "react-bootstrap"
 import Swal from "sweetalert2"
-import SportFormModal from "../../components/sports/SportFormModal.jsx";
+import SportFormModal from "../../components/sports/SportFormModal.jsx"
+import SearchBar from "../../components/SearchBar" // 👈 Importamos el buscador
 import { getSports, createSport, updateSport, deleteSport } from "../../services/sportService"
 
 function SportsPage() {
@@ -10,6 +11,7 @@ function SportsPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [selectedSport, setSelectedSport] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("") // 👈 Estado para el buscador
 
   const colors = {
     purple: '#2b124c',
@@ -18,20 +20,41 @@ function SportsPage() {
     inputBorder: '#442373'
   }
 
+  const handleCatchError = (error, defaultTitle = "Error") => {
+    let errorMsg = "";
+    if (error.details && Array.isArray(error.details)) {
+      errorMsg = error.details.map(err => `• ${err.msg || err.message || err}`).join("<br/>");
+    } else if (error.details && typeof error.details === 'object') {
+      errorMsg = Object.entries(error.details).map(([key, val]) => `• <strong>${key}</strong>: ${val}`).join("<br/>");
+    } else if (error.rawResponse && typeof error.rawResponse === 'object') {
+      const extraKeys = Object.keys(error.rawResponse).filter(k => k !== 'message' && k !== 'error' && k !== 'ok');
+      if (extraKeys.length > 0) {
+        errorMsg = extraKeys.map(key => {
+          const val = error.rawResponse[key];
+          return `• <strong>${key}</strong>: ${typeof val === 'object' ? JSON.stringify(val) : val}`;
+        }).join("<br/>");
+      }
+    }
+    if (!errorMsg) {
+      errorMsg = `• <strong>Campos inválidos:</strong> Por favor, verifica que el deporte tenga un nombre único, duración coherente y un objetivo descriptivo.`;
+    }
+    Swal.fire({
+      title: defaultTitle,
+      html: `<div style="text-align: left; font-size: 0.95rem; line-height: 1.5;">${errorMsg}</div>`,
+      icon: "error",
+      background: colors.purple,
+      color: "#fff",
+      confirmButtonColor: colors.yellow
+    });
+  }
+
   const loadSports = async () => {
     try {
       setLoading(true)
       const data = await getSports()
       setSports(data.data || [])
     } catch (error) {
-      Swal.fire({
-        title: "Error",
-        text: error.message,
-        icon: "error",
-        background: colors.purple,
-        color: "#fff",
-        confirmButtonColor: colors.yellow
-      })
+      handleCatchError(error, "Error al Cargar Deportes")
     } finally {
       setLoading(false)
     }
@@ -40,6 +63,15 @@ function SportsPage() {
   useEffect(() => {
     loadSports()
   }, [])
+
+  // ⚡ FILTRADO REACTIVO DE LOS DEPORTES
+  const filteredSports = sports.filter(sport => {
+    const term = searchTerm.toLowerCase()
+    return (
+      sport.name?.toLowerCase().includes(term) ||
+      sport.objective?.toLowerCase().includes(term)
+    )
+  })
 
   const openCreateModal = () => {
     setSelectedSport(null)
@@ -60,74 +92,37 @@ function SportsPage() {
     try {
       if (selectedSport) {
         await updateSport(selectedSport.id, formData)
-        Swal.fire({
-          title: "Actualizado",
-          text: "Deporte actualizado correctamente",
-          icon: "success",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        Swal.fire({ title: "Actualizado", text: "Deporte actualizado correctamente", icon: "success", background: colors.purple, color: "#fff", confirmButtonColor: colors.yellow })
       } else {
         await createSport(formData)
-        Swal.fire({
-          title: "Creado",
-          text: "Nueva disciplina deportiva guardada",
-          icon: "success",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        Swal.fire({ title: "Creado", text: "Nueva disciplina deportiva guardada", icon: "success", background: colors.purple, color: "#fff", confirmButtonColor: colors.yellow })
       }
       closeModal()
       loadSports()
     } catch (error) {
-      Swal.fire({
-        title: "Error",
-        text: error.message,
-        icon: "error",
-        background: colors.purple,
-        color: "#fff",
-        confirmButtonColor: colors.yellow
-      })
+      handleCatchError(error, "Error en Formulario de Deporte")
     }
   }
 
   const handleDelete = async (sport) => {
     const result = await Swal.fire({
       title: "¿Eliminar disciplina?",
-      text: `¿Seguro que deseas eliminar ${sport.name}? Esto removerá sus clases vigentes.`,
+      text: `¿Seguro que deseas eliminar ${sport.name}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Sí, eliminar",
       cancelButtonText: "Cancelar",
       confirmButtonColor: "#d33",
-      cancelButtonColor: "#6c757d",
       background: colors.purple,
       color: "#fff"
     })
-
     if (result.isConfirmed) {
       try {
         await deleteSport(sport.id)
-        Swal.fire({
-          title: "Eliminado",
-          text: "Deporte eliminado correctamente",
-          icon: "success",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        Swal.fire({ title: "Eliminado", text: "Deporte eliminado correctamente", icon: "success", background: colors.purple, color: "#fff", confirmButtonColor: colors.yellow })
         loadSports()
       } catch (error) {
-        Swal.fire({
-          title: "Error",
-          text: error.message,
-          icon: "error",
-          background: colors.purple,
-          color: "#fff",
-          confirmButtonColor: colors.yellow
-        })
+        handleCatchError(error, "Error al Eliminar Deporte")
       }
     }
   }
@@ -150,6 +145,17 @@ function SportsPage() {
         </Button>
       </div>
 
+      {/* 🔍 BARRA DE BÚSQUEDA */}
+      <Row className="mb-3">
+        <Col md={6} lg={4}>
+          <SearchBar 
+            value={searchTerm} 
+            onChange={setSearchTerm} 
+            placeholder="Buscar disciplina u objetivo..." 
+          />
+        </Col>
+      </Row>
+
       <Card className="border-0 shadow-lg text-white" style={{ backgroundColor: colors.purple, borderRadius: '12px' }}>
         <Card.Body className="p-0">
           {loading ? (
@@ -171,12 +177,14 @@ function SportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sports.length === 0 ? (
+                  {filteredSports.length === 0 ? ( // 👈 Mapeamos el arreglo filtrado
                     <tr>
-                      <td colSpan="6" className="text-center py-4 text-white-50">No hay disciplinas configuradas en el sistema.</td>
+                      <td colSpan="6" className="text-center py-4 text-white-50">
+                        {searchTerm ? "No se encontraron resultados." : "No hay disciplinas configuradas."}
+                      </td>
                     </tr>
                   ) : (
-                    sports.map((sport) => (
+                    filteredSports.map((sport) => ( // 👈 Mapeamos el arreglo filtrado
                       <tr key={sport.id} style={{ borderBottom: `1px solid ${colors.inputBorder}` }}>
                         <td className="py-3 px-4 fw-bold text-white-50">#{sport.id}</td>
                         <td className="py-3 fw-semibold text-white">{sport.name}</td>
@@ -207,12 +215,7 @@ function SportsPage() {
         </Card.Body>
       </Card>
 
-      <SportFormModal
-        show={showModal}
-        handleClose={closeModal}
-        handleSave={handleSave}
-        selectedSport={selectedSport}
-      />
+      <SportFormModal show={showModal} handleClose={closeModal} handleSave={handleSave} selectedSport={selectedSport} />
     </div>
   )
 }

@@ -13,6 +13,24 @@ function getHeader() {
     };
 }
 
+// Helper avanzado para capturar la respuesta JSON de error completa del backend
+async function handleResponseError(response, defaultMsg) {
+    try {
+        const data = await response.json();
+        
+        // Creamos un error con el mensaje principal (ej: "Datos inválidos")
+        const error = new Error(data.message || data.error || defaultMsg);
+        
+        // Adjuntamos TODAS las propiedades que devolvió el JSON del backend para que la vista las analice
+        error.rawResponse = data;
+        error.details = data.errors || data.details || null;
+        
+        return error;
+    } catch {
+        return new Error(defaultMsg);
+    }
+}
+
 // 1. Obtener todas las salas (GET /api/rooms)
 export async function getRooms() {
     const response = await fetch(API_URL, {
@@ -27,7 +45,6 @@ export async function getRooms() {
 
 // 2. Crear una nueva sala (POST /api/rooms)
 export async function createRoom(roomData) {
-    // Estructura según el Modelo de Datos: name, description, capacity, location, status
     const payload = {
         name: roomData.name,
         description: roomData.description,
@@ -44,11 +61,11 @@ export async function createRoom(roomData) {
         body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.message || "Error al registrar la sala");
+        const errorObj = await handleResponseError(response, "Error al registrar la sala");
+        throw errorObj;
     }
-    return data;
+    return response.json();
 }
 
 // 3. Actualizar una sala existente (PUT /api/rooms/:id)
@@ -69,11 +86,11 @@ export async function updateRoom(roomId, roomData) {
         body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.message || "Error al actualizar la sala");
+        const errorObj = await handleResponseError(response, "Error al actualizar la sala");
+        throw errorObj;
     }
-    return data;
+    return response.json();
 }
 
 // 4. Eliminar una sala (DELETE /api/rooms/:id)
@@ -84,8 +101,8 @@ export async function deleteRoom(roomId) {
     });
 
     if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Error al eliminar la sala");
+        const errorObj = await handleResponseError(response, "Error al eliminar la sala");
+        throw errorObj;
     }
     return true;
 }

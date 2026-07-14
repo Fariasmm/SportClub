@@ -3,12 +3,13 @@ import { useEffect, useState } from "react"
 import { Card, Table, Badge } from "react-bootstrap"
 import Swal from "sweetalert2"
 
-// IMPORTACIÓN DE NUESTROS COMPONENTES REUTILIZABLES
 import PageHeader from "../../components/PageHeader"
 import LoaderSpinner from "../../components/LoaderSpinner"
 import { getSchedules } from "../../services/scheduleService"
 import { getSportRooms } from "../../services/sportRoomService"
 import { getUser } from "../../services/authService"
+
+const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
 function MySchedulesPage() {
   const [schedules, setSchedules] = useState([])
@@ -27,7 +28,6 @@ function MySchedulesPage() {
       try {
         setLoading(true)
         
-        // Traemos en paralelo los horarios y las asignaciones
         const [schedulesRes, sportRoomsRes] = await Promise.all([
           getSchedules(),
           getSportRooms()
@@ -36,12 +36,10 @@ function MySchedulesPage() {
         const allSchedules = schedulesRes.data || schedulesRes || []
         const allSportRooms = sportRoomsRes.data || sportRoomsRes || []
 
-        // Filtramos las asignaciones que pertenecen a este profesor
         const myAssignedRoomIds = allSportRooms
           .filter(sr => String(sr.coach_id) === String(currentUser?.id))
           .map(sr => String(sr.id))
 
-        // Dejamos solo los bloques de tiempo que le corresponden
         const directCoachClasses = allSchedules.filter(sched => {
           return myAssignedRoomIds.includes(String(sched.sport_room_id))
         })
@@ -115,10 +113,15 @@ function MySchedulesPage() {
   )
 }
 
-// 🎯 MINI COMPONENTE PARA RESOLVER EL CRUCE EN ESTA VISTA
 function ScheduleRow({ clase, colors }) {
   const [sportName, setSportName] = useState("Cargando...")
   const [roomName, setRoomName] = useState("Cargando...")
+
+  // Convertidor helper para la fila
+  const getDayName = (dayNum) => {
+    const index = parseInt(dayNum, 10) - 1;
+    return DAYS[index] || `Día ${dayNum}`;
+  }
 
   useEffect(() => {
     const fetchRowData = async () => {
@@ -129,7 +132,7 @@ function ScheduleRow({ clase, colors }) {
         
         const relation = match?.SportRoom || match?.sport_room || match?.Sport_Room || match
         setSportName(relation?.Sport?.name || relation?.sport?.name || match?.sport_name || "CrossFit")
-        setRoomName(relation?.Room?.name || relation?.room?.name || match?.room_name || "Cancha Fútbol 2")
+        setRoomName(relation?.Room?.name || relation?.room?.name || match?.room_name || "Sala")
       } catch (e) {
         console.error(e)
       }
@@ -140,7 +143,8 @@ function ScheduleRow({ clase, colors }) {
   return (
     <tr style={{ borderBottom: `1px solid #442373` }}>
       <td className="py-3 px-4 fw-bold text-warning">
-        🗓️ {clase.day_of_week}
+        {/* AQUÍ TRANSLADAMOS EL NÚMERO DEL DÍA A ESPAÑOL */}
+        🗓️ {getDayName(clase.day_of_week)}
       </td>
       <td className="py-3 font-monospace text-white">
         {clase.start_time?.substring(0, 5)} - {clase.end_time?.substring(0, 5)}
