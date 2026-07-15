@@ -1,6 +1,6 @@
 // src/services/roomService.js
 
-const API_URL = "http://localhost:3000/api/rooms/";
+const API_URL = "http://34.225.6.211:3000/api/rooms/";
 
 function getToken() {
     return localStorage.getItem("token");
