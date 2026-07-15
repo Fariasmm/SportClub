@@ -217,14 +217,14 @@ function UserDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredClasses.length === 0 ? ( // 👈 Mapeamos el arreglo filtrado
+                    {filteredClasses.length === 0 ? (
                       <tr>
                         <td colSpan="5" className="text-center py-4 text-white-50">
                           {searchTerm ? "No se encontraron clases que coincidan con la búsqueda." : "No hay bloques de entrenamiento disponibles."}
                         </td>
                       </tr>
                     ) : (
-                      filteredClasses.map((c) => { // 👈 Mapeamos el arreglo filtrado
+                      filteredClasses.map((c, idx) => { // 👈 Añadido index de contingencia
                         const matchedRoom = sportRoomsCatalog.find(sr => {
                           const targetId = String(c.sport_room_id || "")
                           return String(sr.id || "") === targetId || String(sr.sport_room_id || "") === targetId
@@ -238,7 +238,8 @@ function UserDashboard() {
                         const coachName = coachObj?.full_name || coachObj?.name || relation?.coach_name || matchedRoom?.coach_name || "Profesor Asignado"
 
                         return (
-                          <tr key={c.id} style={{ borderBottom: `1px solid ${colors.inputBorder}` }}>
+                          // ⚡ LLAVE CORREGIDA ÚNICA PARA LAS FILAS DE LA TABLA
+                          <tr key={`available-class-${c.id || idx}-${idx}`} style={{ borderBottom: `1px solid ${colors.inputBorder}` }}>
                             <td className="py-3 px-4">
                               <span className="fw-bold d-block text-warning small">{getDayName(c.day_of_week)}</span>
                               <span className="font-monospace small opacity-75">{c.start_time?.substring(0, 5)} - {c.end_time?.substring(0, 5)}</span>
@@ -295,7 +296,8 @@ function UserDashboard() {
                   const timeRange = matchingSchedule ? `${matchingSchedule.start_time?.substring(0, 5)} - ${matchingSchedule.end_time?.substring(0, 5)}` : ""
 
                   return (
-                    <Card key={`res-${res.id || index}-${index}`} style={{ backgroundColor: colors.darkBg, border: `1px solid ${colors.inputBorder}` }} className="p-3 border-0 shadow-sm animate__animated animate__fadeIn">
+                    // ⚡ LLAVE CORREGIDA ÚNICA PARA LAS TARJETAS LATERALES DE RESERVA
+                    <Card key={`active-res-${res.id || res.class_schedule_id || index}-${index}`} style={{ backgroundColor: colors.darkBg, border: `1px solid ${colors.inputBorder}` }} className="p-3 border-0 shadow-sm animate__animated animate__fadeIn">
                       <div className="d-flex justify-content-between align-items-start">
                         <div>
                           <h6 className="fw-bold text-white m-0 text-uppercase" style={{ fontSize: '0.85rem' }}>{sportName}</h6>
